@@ -6,7 +6,6 @@ The client is designed for robustness, with automatic resource cleanup on exit a
 
 ## Requirements
 
-- **Platform**: The client is cross-platform and has been tested on both Windows and Unix-like systems (Linux, macOS).
 - **Python**: Python 3.6 or higher is required.
 - **Dependencies**:
     - `requests`: For making HTTP requests to the ThorVision server.
@@ -14,10 +13,10 @@ The client is designed for robustness, with automatic resource cleanup on exit a
 
 ## Installation
 
-To install PyThorVision, you can use `pip`:
+To install PyThorVision, you can use `pip` in project root directory:
 
 ```bash
-pip install <project_root>/pythorvision
+pip install .
 ```
 
 This will install the package and its required Python dependencies.
@@ -35,50 +34,47 @@ This tutorial demonstrates how to use `ThorVisionClient` to connect to the serve
     python test.py
     ```
 
-You should see output detailing the camera capabilities, the selected stream, and recording status. After 60 seconds, the script will finish, and the recording will be stopped. The recorded `.mkv` file will be saved in the `recordings` directory.
+You should see output detailing the camera capabilities, the selected stream, and recording status. After 10 seconds, the script will finish, and the recording will be stopped. The recorded `.mkv` video file will be saved in the directory you specify.
 
 ## API Documentation
 
+### `XdaqClient`
 
+The main client for interacting with the ThorVision server.
+
+#### `__init__(self, host: str = "192.168.177.100", port: int = 8000)`
+
+- Initializes the client and establishes a connection to the server.
 
 ### Listing Cameras and Capabilities
 
-**`list_cameras(self) -> List[Dict[str, Any]]`**
+#### `list_cameras(self) -> List[Camera]`
 
--   Retrieves a list of all cameras available on the server.
--   Returns a list of dictionaries, where each dictionary contains details about a camera.
-
-**`format_camera_capabilities(self, cameras: Optional[List[Dict[str, Any]]] = None) -> Dict[int, List[str]]`**
-
--   Fetches and prints a human-readable, formatted list of capabilities for each camera, grouped by media type, format, and resolution.
--   It filters for and displays only `image/jpeg` and `video/x-raw` capabilities.
--   Returns a dictionary mapping each `camera_id` to a list of its formatted capability strings, which can be passed to the streaming methods.
+- Retrieves a list of all `Camera` objects available on the server.
+- Each `Camera` object contains its `id`, `name`, and a list of `Capability` objects.
 
 ### Streaming and Recording
 
-**`start_stream_with_recording(self, camera_id: int, capability: str, **kwargs) -> Dict[str, Any]`**
+#### `start_stream_with_recording(self, camera: Camera, capability: Capability, **kwargs) -> Dict[str, Any]`
 
--   Starts a stream on the server and launches a local GStreamer process to record it into segmented `.mkv` files.
--   `camera_id` (int): The ID of the camera to use.
--   `capability` (str): A formatted capability string from `format_camera_capabilities`. This method is primarily designed for `image/jpeg` capabilities.
--   **Keyword Arguments:**
-    -   `output_dir` (str, optional): Directory to save recording files. Defaults to `./recordings`.
-    -   `max_size_time` (int, optional): The maximum duration of each video segment in seconds. Defaults to `3600` (1 hour).
-    -   `max_size_bytes` (int, optional): The maximum size of each video segment in bytes. Defaults to `2000000000` (2GB).
-    -   `gstreamer_log` (str, optional): Controls GStreamer's logging. Can be `'console'`, `'file'`, or `'none'`. Defaults to `'file'`.
+- Starts a stream on the server and launches a local GStreamer process to record it.
+- `camera` (Camera): The `Camera` object to use.
+- `capability` (Capability): The `Capability` object specifying the stream parameters.
+- **Keyword Arguments:**
+    - `output_dir` (str): Directory to save recording files.
+    - `split_max_files` (int, optional): Max number of files before recycling. Defaults to `0` (no limit).
+    - `split_max_time_sec` (int, optional): The maximum duration of each video segment in seconds. Defaults to `0` (no limit).
+    - `split_max_size_mb` (int, optional): The maximum size of each video segment in megabytes. Defaults to `0` (no limit).
+    - `gstreamer_debug` (bool, optional): If `True`, enables GStreamer debug logging to a file. Defaults to `False`.
 
 ### Managing Active Streams
 
-**`stop_stream(self, camera_id: int) -> Dict[str, Any]`**
+#### `stop_stream(self, camera_id: int) -> Dict[str, Any]`
 
--   Stops the GStreamer recording process and sends a request to the server to stop the stream for the specified `camera_id`.
-
-**`list_active_streams(self) -> Dict[int, Dict[str, Any]]`**
-
--   Returns a dictionary of all streams currently being managed by the client instance, showing their port, recording status, and output path.
+- Stops the GStreamer recording process and the stream on the server for the specified `camera_id`.
 
 ### Resource Management
 
-**`cleanup(self)`**
+#### `cleanup(self)`
 
--   Stops all active streams and recordings and releases all associated resources. This method is called automatically on program exit or when the `with` statement context is exited. Manual invocation is generally not required if using the context manager.
+- Stops all active streams and recordings and releases all associated resources. It's called automatically on script exit.

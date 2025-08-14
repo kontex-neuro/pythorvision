@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pythorvision"
+dynamic = ["version"]
+description = "Python API for ThorVision"
+authors = [
+    { name = "Kontex", email = "hhuang@kontex.com" }
+]
+keywords = ["vision", "camera", "api"]
+requires-python = ">=3.6"
+dependencies = [
+    "requests>=2.25.0",
+    "pydantic"
+]
+
+[tool.setuptools]
+packages = ["pythorvision"]
+
+[tool.setuptools.dynamic]
+version = {attr = "pythorvision.__version__"}
