@@ -13,7 +13,7 @@ keywords = ["vision", "camera", "api"]
 requires-python = ">=3.6"
 dependencies = [
     "requests>=2.25.0",
-    "pydantic"
+    "pydantic>=2.0"
 ]
 
 [tool.setuptools]

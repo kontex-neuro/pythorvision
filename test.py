@@ -1,12 +1,15 @@
-from pythorvision import XdaqClient, enable_logging
 import time
-import os
+import requests
+from pythorvision import XdaqClient, enable_logging
 
 enable_logging(level="INFO")
 
-client = XdaqClient()
-
+client = None
 try:
+    client = XdaqClient()
+
+    recordings_dir = "recordings"
+
     all_cameras = client.list_cameras()
     if not all_cameras:
         print("No cameras found.")
@@ -17,60 +20,86 @@ try:
         print("-" * 20)
         print(f"Camera ID: {camera.id}")
         print(f"Name: {camera.name}")
-
-        grouped_caps = {}
-        print(f"Caps:")
-        for cap in camera.caps:
-            print('    - ' + cap.to_string())
-
+        print("Capabilities:")
+        for i, cap in enumerate(camera.capabilities):
+            if cap.media_type != 'image/jpeg':
+                continue
+            print(f"  - {i}: {cap.media_type} @ {cap.width}x{cap.height} {cap.framerate} fps")
         print("-" * 20)
 
-    camera_0 = next((cam for cam in all_cameras if cam.id == 0), None)
-    camera_2 = next((cam for cam in all_cameras if cam.id == 2), None)
-
-    recordings_dir = os.path.join(os.getcwd(), "recordings")
+    camera_0 = all_cameras[0]
+    camera_1 = all_cameras[1]
 
     if camera_0:
-        jpeg_cap_0 = next((cap for cap in camera_0.caps if cap.media_type == 'image/jpeg'), None)
-
+        jpeg_cap_0 = camera_0.capabilities[0]
         if jpeg_cap_0:
-            print(f"\nStarting stream for Camera {camera_0.id} ({camera_0.name})...")
-            result_0 = client.start_stream_with_recording(
-                camera=camera_0, capability=jpeg_cap_0, output_dir=recordings_dir
-            )
-            if result_0["success"]:
-                print(f"✓ Stream started: {result_0['message']}")
-
+            try:
+                print(f"\nStarting stream for Camera {camera_0.id} ({camera_0.name})...")
+                stream_0 = client.start_stream_with_recording(
+                    camera=camera_0,
+                    capability=jpeg_cap_0,
+                    output_dir=recordings_dir,
+                    gstreamer_debug=True
+                )
+                print(
+                    f"✓ Stream started for camera {camera_0.id}. "
+                    f"Recording to: {stream_0.video_path.parent}"
+                )
+            except (ValueError, RuntimeError) as e:
+                print(f"✗ Failed to start stream for camera {camera_0.id}: {e}")
         else:
             print(f"No 'image/jpeg' capability found for Camera {camera_0.id}")
     else:
         print("Camera with ID 0 not found.")
 
-    if camera_2:
-        jpeg_cap_2 = next((cap for cap in camera_2.caps if cap.media_type == 'image/jpeg'), None)
-
-        if jpeg_cap_2:
-            print(f"\nStarting stream for Camera {camera_2.id} ({camera_2.name})...")
-            result_2 = client.start_stream_with_recording(
-                camera=camera_2, capability=jpeg_cap_2, output_dir=recordings_dir
-            )
-            if result_2["success"]:
-                print(f"✓ Stream started: {result_2['message']}")
-
+    if camera_1:
+        jpeg_cap_1 = camera_1.capabilities[0]
+        if jpeg_cap_1:
+            try:
+                print(f"\nStarting stream for Camera {camera_1.id} ({camera_1.name})...")
+                stream_1 = client.start_stream_with_recording(
+                    camera=camera_1, capability=jpeg_cap_1, output_dir=recordings_dir
+                )
+                print(
+                    f"✓ Stream started for camera {camera_1.id}. "
+                    f"Recording to: {stream_1.video_path.parent}"
+                )
+            except (ValueError, RuntimeError) as e:
+                print(f"✗ Failed to start stream for camera {camera_1.id}: {e}")
         else:
-            print(f"No 'image/jpeg' capability found for Camera {camera_2.id}")
+            print(f"No 'image/jpeg' capability found for Camera {camera_1.id}")
     else:
-        print("Camera with ID 2 not found.")
+        print("Camera with ID 1 not found.")
 
-    print("\nRecording for 10 seconds...")
-    time.sleep(10)
+    if len(client.streams) > 0:
+        print("\nRecording for 10 seconds...")
+        time.sleep(10)
 
-    print("\nStopping streams...")
-    client.stop_stream(camera_0.id)
-    client.stop_stream(camera_2.id)
+        print("\nStopping streams...")
+        if camera_0 and camera_0.id in client.streams:
+            try:
+                client.stop_stream(camera_0.id)
+                print(f"✓ Stream stopped for camera {camera_0.id}.")
+            except (ValueError, RuntimeError) as e:
+                print(f"✗ Error stopping stream for camera {camera_0.id}: {e}")
 
+        if camera_1 and camera_1.id in client.streams:
+            try:
+                client.stop_stream(camera_1.id)
+                print(f"✓ Stream stopped for camera {camera_1.id}.")
+            except (ValueError, RuntimeError) as e:
+                print(f"✗ Error stopping stream for camera {camera_1.id}: {e}")
+    else:
+        print("\nNo streams were started.")
+
+except (ConnectionError, requests.exceptions.RequestException) as e:
+    print(f"\n✗ An error occurred communicating with the server: {e}")
 except Exception as e:
-    print(f"\nAn error occurred: {e}")
+    print(f"\n✗ An unexpected error occurred: {e}")
 finally:
-    client.cleanup()
-    print("Cleanup complete.")
+    if client and client.streams:
+        print("\nRunning final cleanup...")
+        client.clean_streams()
+        print("Cleanup complete.")
+    else:
+        print("\nNo active streams to clean up.")

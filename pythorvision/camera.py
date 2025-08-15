@@ -9,7 +9,7 @@ class Capability(BaseModel):
     height: int
     framerate: str
 
-    def to_string(self) -> str:
+    def to_gstreamer_capability(self) -> str:
         if self.format:
             return f"{self.media_type},format={self.format},width={self.width},height={self.height},framerate={self.framerate}"
         return f"{self.media_type},width={self.width},height={self.height},framerate={self.framerate}"
@@ -18,4 +18,4 @@ class Capability(BaseModel):
 class Camera(BaseModel):
     id: int
     name: str
-    caps: List[Capability] = Field(default_factory=list)
+    capabilities: List[Capability] = Field(default_factory=list, alias="caps")
