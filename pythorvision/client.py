@@ -17,6 +17,20 @@ logger = logging.getLogger(__name__)
 
 
 class Stream(BaseModel):
+    """Represents an active video stream and its associated resources.
+
+    Attributes:
+        camera (Camera): The camera being streamed.
+        capability (Capability): The capability used for the stream.
+        port (int): The network port used for the SRT stream.
+        video_path (Path): The path to the recorded video file.
+        gstreamer_pipeline (str): The GStreamer pipeline command used.
+        process (Any): The subprocess handle for the GStreamer process.
+        gstreamer_log_file (Optional[Any]): The file handle for GStreamer logs.
+        gstreamer_log_file_path (Optional[Path]): The path to the GStreamer
+            log file.
+        created_at (datetime): The timestamp when the stream was created.
+    """
     camera: Camera
     capability: Capability
     port: int
@@ -32,18 +46,39 @@ class Stream(BaseModel):
 
 
 class XdaqClient(BaseModel):
+    """Client for interacting with the XDAQ server to manage camera streams.
+
+    Attributes:
+        host (str): The hostname or IP address of the XDAQ server.
+        port (int): The port number of the XDAQ server.
+        streams (Dict[int, Stream]): A dictionary of active streams, keyed by
+            camera ID.
+    """
     host: str = "192.168.177.100"
     port: int = 8000
     _base_url: str = PrivateAttr("")
     streams: Annotated[Dict[int, Stream], Field(default_factory=dict, repr=False)]
 
     def model_post_init(self, __context: Any) -> None:
+        """Initialize the client after the model is created.
+
+        This method sets up the base URL for the server and performs initial
+        checks for server connectivity and GStreamer installation.
+
+        Args:
+            __context (Any): The context for model initialization.
+        """
         self._base_url = f"http://{self.host}:{self.port}"
         logger.info(f"Initializing XdaqClient for {self._base_url}")
         self._check_host()
         self._check_gstreamer()
 
     def _check_host(self):
+        """Check if the XDAQ server is reachable.
+
+        Raises:
+            ConnectionError: If the server is not reachable.
+        """
         try:
             logger.debug("Checking connection to XDAQ server")
             requests.get(f"{self._base_url}/cameras", timeout=5).raise_for_status()
@@ -53,6 +88,11 @@ class XdaqClient(BaseModel):
             raise ConnectionError(f"XDAQ is not reachable. Please check the connection.") from e
 
     def _check_gstreamer(self):
+        """Check if GStreamer is installed and available in the system's PATH.
+
+        Raises:
+            RuntimeError: If 'gst-launch-1.0' command is not found.
+        """
         if not shutil.which("gst-launch-1.0"):
             logger.error("GStreamer command 'gst-launch-1.0' not found")
             raise RuntimeError(
@@ -62,9 +102,19 @@ class XdaqClient(BaseModel):
         logger.info("GStreamer is available")
 
     def __del__(self):
+        """Ensure all streams are cleaned up when the client is destroyed."""
         self.clean_streams()
 
     def list_cameras(self) -> List[Camera]:
+        """Retrieve a list of available cameras from the XDAQ server.
+
+        Returns:
+            List[Camera]: A list of Camera objects.
+
+        Raises:
+            requests.exceptions.RequestException: If there is an issue
+                communicating with the server.
+        """
         response = requests.get(f"{self._base_url}/cameras", timeout=5)
         response.raise_for_status()
         cameras_data = response.json()
@@ -80,6 +130,35 @@ class XdaqClient(BaseModel):
         split_max_size_mb: Optional[int] = 0,
         gstreamer_debug: bool = False
     ) -> Stream:
+        """Start a camera stream and record it to a file.
+
+        This method requests the server to start streaming a camera's feed,
+        then launches a local GStreamer process to receive and record the
+        stream. The recording can be split into multiple files based on
+        time, size, or number of files.
+
+        Args:
+            camera (Camera): The camera to start streaming.
+            capability (Capability): The desired stream capability (resolution,
+                format, etc.).
+            output_dir (str): The directory to save the recording files.
+            split_max_files (Optional[int]): The maximum number of files to
+                create before overwriting. 0 for no limit. Defaults to 0.
+            split_max_time_sec (Optional[int]): The maximum duration of each
+                file in seconds. 0 for no limit. Defaults to 0.
+            split_max_size_mb (Optional[int]): The maximum size of each file in
+                megabytes. 0 for no limit. Defaults to 0.
+            gstreamer_debug (bool): If True, enables GStreamer debug logging.
+                Defaults to False.
+
+        Returns:
+            Stream: A Stream object representing the active stream.
+
+        Raises:
+            ValueError: If the selected capability is not a supported format.
+            RuntimeError: If the stream fails to start on the server or if the
+                local GStreamer process fails.
+        """
 
         camera_id = camera.id
         capability_str = capability.to_gstreamer_capability()
@@ -208,6 +287,17 @@ class XdaqClient(BaseModel):
             raise RuntimeError(f"Failed to start GStreamer for camera {camera_id}") from e
 
     def stop_stream(self, camera_id: int) -> None:
+        """Stop the stream for a specific camera.
+
+        This terminates the local GStreamer process and sends a request to the
+        server to stop sending the stream.
+
+        Args:
+            camera_id (int): The ID of the camera to stop.
+
+        Raises:
+            ValueError: If no active stream is found for the given camera ID.
+        """
         logger.info(f"Stopping stream for camera {camera_id}")
         stream = self.streams.pop(camera_id, None)
 
@@ -268,6 +358,18 @@ class XdaqClient(BaseModel):
             )
 
     def _get_available_port(self, start: int = 9001, end: int = 9099) -> int:
+        """Find an available network port in a given range for the SRT stream.
+
+        Args:
+            start (int): The starting port number. Defaults to 9001.
+            end (int): The ending port number. Defaults to 9099.
+
+        Returns:
+            int: An available port number.
+
+        Raises:
+            RuntimeError: If no available ports are found in the specified range.
+        """
         active_ports = [stream.port for stream in self.streams.values()]
         for port in range(start, end + 1):
             if port not in active_ports:
@@ -277,6 +379,10 @@ class XdaqClient(BaseModel):
         raise RuntimeError(f"No available ports in range {start}-{end}")
 
     def clean_streams(self):
+        """Stop all active streams and clean up all resources.
+
+        This is useful for gracefully shutting down the client.
+        """
         logger.info("Starting cleanup of all streams")
         camera_ids = list(self.streams.keys())
 
