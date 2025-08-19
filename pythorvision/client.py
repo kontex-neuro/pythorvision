@@ -333,7 +333,7 @@ class XdaqClient(BaseModel):
                 logger.debug(f"Terminating GStreamer process for camera {camera_id}")
 
                 if os.name == 'nt':
-                    stream.process.send_signal(signal.CTRL_C_EVENT)
+                    stream.process.send_signal(signal.CTRL_BREAK_EVENT)
                 else:
                     stream.process.send_signal(signal.SIGINT)
 

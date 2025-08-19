@@ -1,20 +1,18 @@
 import time
 from typing import Optional
 import requests
-from pythorvision import XdaqClient, enable_logging, Camera
+from pythorvision import XdaqClient, enable_logging, Camera, Capability
 
 enable_logging(level="INFO")
 
 
 def start_camera_stream(
-    client: XdaqClient, camera: Camera, recordings_dir: str, gstreamer_debug: bool = False
+    client: XdaqClient,
+    camera: Camera,
+    jpeg_cap: Capability,
+    recordings_dir: str,
+    gstreamer_debug: bool = False
 ):
-    """Starts a stream for a given camera and handles potential errors."""
-    jpeg_cap = next((cap for cap in camera.capabilities if cap.media_type == 'image/jpeg'), None)
-    if not jpeg_cap:
-        print(f"No 'image/jpeg' capability found for Camera {camera.id}")
-        return
-
     try:
         print(f"\nStarting stream for Camera {camera.id} ({camera.name})...")
         stream = client.start_stream_with_recording(
@@ -29,7 +27,6 @@ def start_camera_stream(
 
 
 def stop_camera_stream(client: XdaqClient, camera: Optional[Camera]):
-    """Stops a stream for a given camera and handles potential errors."""
     if camera and camera.id in client.streams:
         try:
             client.stop_stream(camera.id)
@@ -39,7 +36,6 @@ def stop_camera_stream(client: XdaqClient, camera: Optional[Camera]):
 
 
 def main():
-    """Main function to run the camera streaming example."""
     client = None
     try:
         client = XdaqClient()
@@ -70,7 +66,15 @@ def main():
             return
 
         for i, camera in enumerate(cameras_to_stream):
-            start_camera_stream(client, camera, recordings_dir, gstreamer_debug=True)
+            jpeg_cap = None
+            for cap in camera.capabilities:
+                if cap.media_type == 'image/jpeg':
+                    jpeg_cap = cap
+                    break
+            if jpeg_cap:
+                start_camera_stream(client, camera, jpeg_cap, recordings_dir)
+            else:
+                print(f"No 'image/jpeg' capability found for Camera {camera.id}")
 
         if client.streams:
             print("\nRecording for 10 seconds...")

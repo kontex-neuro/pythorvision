@@ -49,7 +49,7 @@ This tutorial demonstrates how to use `XdaqClient` to connect to the server, sta
 Run the example script from your terminal:
 
    ```bash
-   python examples/run_2_cams.py
+   python ./examples/run_two_cams.py
    ```
 
 This example script demonstrates how to:
