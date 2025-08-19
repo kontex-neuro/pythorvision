@@ -48,12 +48,12 @@ class Stream(BaseModel):
         arbitrary_types_allowed = True
 
 
-class XdaqClient(BaseModel):
-    """Client for interacting with the XDAQ server to manage camera streams.
+class ThorVisionClient(BaseModel):
+    """Client for interacting with the ThorVision server to manage camera streams.
 
     Attributes:
-        host (str): The hostname or IP address of the XDAQ server.
-        port (int): The port number of the XDAQ server.
+        host (str): The hostname or IP address of the ThorVision server.
+        port (int): The port number of the ThorVision server.
         streams (Dict[int, Stream]): A dictionary of active streams, keyed by
             camera ID.
     """
@@ -73,23 +73,25 @@ class XdaqClient(BaseModel):
             __context (Any): The context for model initialization.
         """
         self._base_url = f"http://{self.host}:{self.port}"
-        logger.info(f"Initializing XdaqClient for {self._base_url}")
+        logger.info(f"Initializing ThorVisionClient for {self._base_url}")
         self._check_host()
         self._check_gstreamer()
 
     def _check_host(self):
-        """Check if the XDAQ server is reachable.
+        """Check if the ThorVision server is reachable.
 
         Raises:
             ConnectionError: If the server is not reachable.
         """
         try:
-            logger.debug("Checking connection to XDAQ server")
+            logger.debug("Checking connection to ThorVision server")
             requests.get(f"{self._base_url}/cameras", timeout=5).raise_for_status()
-            logger.info("Successfully connected to XDAQ server")
+            logger.info("Successfully connected to ThorVision server")
         except requests.exceptions.RequestException as e:
-            logger.error(f"XDAQ is not reachable at {self._base_url}: {e}")
-            raise ConnectionError(f"XDAQ is not reachable. Please check the connection.") from e
+            logger.error(f"ThorVision is not reachable at {self._base_url}: {e}")
+            raise ConnectionError(
+                f"ThorVision is not reachable. Please check the connection."
+            ) from e
 
     def _check_gstreamer(self):
         """Check if GStreamer is installed and available in the system's PATH.
@@ -112,7 +114,7 @@ class XdaqClient(BaseModel):
         self.clean_streams()
 
     def list_cameras(self) -> List[Camera]:
-        """Retrieve a list of available cameras from the XDAQ server.
+        """Retrieve a list of available cameras from the ThorVision server.
 
         Returns:
             List[Camera]: A list of Camera objects.

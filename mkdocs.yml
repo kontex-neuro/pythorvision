@@ -1,5 +1,5 @@
-site_name: PyThorVision
-site_description: "Python client for the XDAQ camera streaming server."
+site_name: pythorvision
+site_description: "Python client for the ThorVision camera streaming server."
 
 theme:
   name: material

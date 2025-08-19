@@ -1,7 +1,7 @@
 __version__ = "0.1.0"
 
 from .camera import Camera, Capability
-from .client import XdaqClient
+from .client import ThorVisionClient
 import logging
 
 # Set up a logger for the package
@@ -10,7 +10,7 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 def enable_logging(level: str = "INFO"):
     """
-    Enable logging for PyThorVision.
+    Enable logging for ThorVision.
     
     Args:
         level: Logging level ('DEBUG', 'INFO', 'WARNING', 'ERROR')
@@ -32,4 +32,4 @@ def enable_logging(level: str = "INFO"):
     logger.addHandler(handler)
 
 
-__all__ = ['XdaqClient', 'Camera', 'Capability', 'enable_logging', '__version__']
+__all__ = ['ThorVisionClient', 'Camera', 'Capability', 'enable_logging', '__version__']

@@ -1,12 +1,16 @@
-# PyThorVision
+# pythorvision
 
-**PyThorVision** is a Python client for communicating with a XDAQ server, designed to manage camera streams and recordings.
+`pythorvision` is a python package as client API for communicating with **XDAQ** video streaming subsystem -- **ThorVision**, designed to manage camera streams and recordings.
 
 ## Features
 
-PythorVision features **High-level API** with simple interface for managing camera streams and recordings.
+**pythorvision** features **High-level API** with simple interface for managing camera streams and recordings.
 - **Camera Discovery**: List available cameras and their capabilities.
-- **Flexible Stream Selection**: Select stream capabilities (media type, format, resolution, framerate).
+- **Flexible Stream Selection**: Select stream capabilities:
+  - media type (MJPEG)
+  - format
+  - resolution
+  - framerate
 - **GStreamer-based Recording**: Record video streams into split `.mkv` files using GStreamer.
 
 ## Requirements
@@ -32,7 +36,7 @@ PythorVision features **High-level API** with simple interface for managing came
 
 ## Installation
 
-To install PyThorVision, you can use `pip` in project root directory:
+To install **pythorvision**, you can use `pip` in project root directory:
 
 ```bash
 pip install .
@@ -42,7 +46,7 @@ This will install the package and its required Python dependencies.
 
 ## Tutorial
 
-This tutorial demonstrates how to use `XdaqClient` to connect to the server, start and record streams from cameras, and then clean up the resources.
+This tutorial demonstrates how to use `ThorVisionClient` to connect to the server, start and record streams from cameras, and then clean up the resources.
 
 ### Run the Example Script
 
@@ -53,7 +57,7 @@ Run the example script from your terminal:
    ```
 
 This example script demonstrates how to:
-- Connect to the XDAQ server
+- Connect to the XDAQ ThorVision server
 - List available cameras and their capabilities
 - Start recording streams from up to 2 cameras
 - Record for a short period
@@ -63,4 +67,4 @@ You should see output detailing the camera capabilities, the selected streams, a
 
 ## API Documentation
 
-For complete API documentation, visit: [https://kontex-neuro.github.io/PyThorVision/](https://kontex-neuro.github.io/PyThorVision/)
+For complete API documentation, visit: [https://kontex-neuro.github.io/pythorvision/](https://kontex-neuro.github.io/pythorvision/)

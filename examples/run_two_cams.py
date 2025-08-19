@@ -1,13 +1,13 @@
 import time
 from typing import Optional
 import requests
-from pythorvision import XdaqClient, enable_logging, Camera, Capability
+from pythorvision import ThorVisionClient, enable_logging, Camera, Capability
 
 enable_logging(level="INFO")
 
 
 def start_camera_stream(
-    client: XdaqClient,
+    client: ThorVisionClient,
     camera: Camera,
     jpeg_cap: Capability,
     recordings_dir: str,
@@ -26,7 +26,7 @@ def start_camera_stream(
         print(f"✗ Failed to start stream for camera {camera.id}: {e}")
 
 
-def stop_camera_stream(client: XdaqClient, camera: Optional[Camera]):
+def stop_camera_stream(client: ThorVisionClient, camera: Optional[Camera]):
     if camera and camera.id in client.streams:
         try:
             client.stop_stream(camera.id)
@@ -38,7 +38,7 @@ def stop_camera_stream(client: XdaqClient, camera: Optional[Camera]):
 def main():
     client = None
     try:
-        client = XdaqClient()
+        client = ThorVisionClient()
 
         recordings_dir = "recordings"
 
