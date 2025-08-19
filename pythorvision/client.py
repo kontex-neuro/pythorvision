@@ -4,8 +4,10 @@ import signal
 import time
 import shutil
 import logging
+import shlex
 from datetime import datetime
 from typing import List, Dict, Any, Optional
+import io
 from pathlib import Path
 from pydantic import BaseModel, Field, PrivateAttr
 from typing_extensions import Annotated
@@ -25,8 +27,9 @@ class Stream(BaseModel):
         port (int): The network port used for the SRT stream.
         video_path (Path): The path to the recorded video file.
         gstreamer_pipeline (str): The GStreamer pipeline command used.
-        process (Any): The subprocess handle for the GStreamer process.
-        gstreamer_log_file (Optional[Any]): The file handle for GStreamer logs.
+        process (subprocess.Popen): The Popen object for the running GStreamer
+            process.
+        gstreamer_log_file (Optional[io.TextIOBase]): The file handle for GStreamer logs.
         gstreamer_log_file_path (Optional[Path]): The path to the GStreamer
             log file.
         created_at (datetime): The timestamp when the stream was created.
@@ -36,8 +39,8 @@ class Stream(BaseModel):
     port: int
     video_path: Path
     gstreamer_pipeline: str
-    process: Any
-    gstreamer_log_file: Optional[Any] = None
+    process: subprocess.Popen
+    gstreamer_log_file: Optional[io.TextIOBase] = None
     gstreamer_log_file_path: Optional[Path] = None
     created_at: datetime = Field(default_factory=datetime.now)
 
@@ -57,6 +60,7 @@ class XdaqClient(BaseModel):
     host: str = "192.168.177.100"
     port: int = 8000
     _base_url: str = PrivateAttr("")
+    _gst_launch_path: str = PrivateAttr("")
     streams: Annotated[Dict[int, Stream], Field(default_factory=dict, repr=False)]
 
     def model_post_init(self, __context: Any) -> None:
@@ -93,13 +97,15 @@ class XdaqClient(BaseModel):
         Raises:
             RuntimeError: If 'gst-launch-1.0' command is not found.
         """
-        if not shutil.which("gst-launch-1.0"):
+        gst_launch_path = shutil.which("gst-launch-1.0")
+        if not gst_launch_path:
             logger.error("GStreamer command 'gst-launch-1.0' not found")
             raise RuntimeError(
                 "GStreamer command 'gst-launch-1.0' not found. "
                 "Please ensure GStreamer is installed and in your system's PATH."
             )
-        logger.info("GStreamer is available")
+        self._gst_launch_path = gst_launch_path
+        logger.info(f"GStreamer is available at: {self._gst_launch_path}")
 
     def __del__(self):
         """Ensure all streams are cleaned up when the client is destroyed."""
@@ -205,7 +211,7 @@ class XdaqClient(BaseModel):
         video_path = output_path / f"{file_basename}-%02d.mkv"
         gst_output_path = video_path.as_posix()
 
-        gstreamer_log_file: Optional[Any] = None
+        gstreamer_log_file: Optional[io.TextIOBase] = None
         try:
             if gstreamer_debug:
                 gstreamer_log_file_path = (output_path / f"{file_basename}.gstreamer.log")
@@ -217,7 +223,7 @@ class XdaqClient(BaseModel):
                 stdout_dest = stderr_dest = subprocess.DEVNULL
 
             pipeline_cmd = (
-                'gst-launch-1.0 -e -v '
+                f'"{self._gst_launch_path}" -e -v '
                 f'srtclientsrc uri=srt://{self.host}:{port} latency=500 ! '
                 'queue ! jpegparse ! tee name=t ! '
                 f'queue ! splitmuxsink max-files={split_max_files} '
@@ -232,17 +238,21 @@ class XdaqClient(BaseModel):
             if gstreamer_debug:
                 env['GST_DEBUG'] = '3'
 
+            pipeline_args = shlex.split(pipeline_cmd)
+
+            popen_kwargs = {
+                "stdout": stdout_dest,
+                "stderr": stderr_dest,
+                "text": True,
+                "bufsize": 1,
+                "env": env
+            }
+
+            if os.name == 'nt':
+                popen_kwargs['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP
+
             logger.debug(f"Starting GStreamer with FPS monitoring: {pipeline_cmd}")
-            process = subprocess.Popen(
-                pipeline_cmd,
-                stdout=stdout_dest,
-                stderr=stderr_dest,
-                text=True,
-                bufsize=1,
-                shell=True,
-                env=env,
-                universal_newlines=True
-            )
+            process = subprocess.Popen(pipeline_args, **popen_kwargs)
 
             time.sleep(1)
 
@@ -277,6 +287,19 @@ class XdaqClient(BaseModel):
 
         except Exception as e:
             logger.error(f"Failed to start GStreamer process: {e}")
+
+            if 'process' in locals() and process.poll() is None:
+                logger.warning(f"Cleaning up orphaned GStreamer process for camera {camera_id}")
+                if os.name == 'nt':
+                    process.send_signal(signal.CTRL_C_EVENT)
+                else:
+                    process.send_signal(signal.SIGINT)
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=2)
+
             if gstreamer_log_file:
                 gstreamer_log_file.close()
 
@@ -289,8 +312,9 @@ class XdaqClient(BaseModel):
     def stop_stream(self, camera_id: int) -> None:
         """Stop the stream for a specific camera.
 
-        This terminates the local GStreamer process and sends a request to the
-        server to stop sending the stream.
+        This terminates the local GStreamer process by sending an interrupt
+        signal, allowing it to finalize recordings. It then sends a request to
+        the server to stop sending the stream.
 
         Args:
             camera_id (int): The ID of the camera to stop.
@@ -309,18 +333,7 @@ class XdaqClient(BaseModel):
                 logger.debug(f"Terminating GStreamer process for camera {camera_id}")
 
                 if os.name == 'nt':
-                    try:
-                        subprocess.run(
-                            ['taskkill', '/F', '/T', '/PID',
-                             str(stream.process.pid)],
-                            check=True,
-                            capture_output=True,
-                            text=True
-                        )
-                    except (FileNotFoundError, subprocess.CalledProcessError) as e:
-                        logger.warning(f"taskkill failed: {e}. Falling back to process.kill()")
-                        if stream.process.poll() is None:
-                            stream.process.kill()
+                    stream.process.send_signal(signal.CTRL_C_EVENT)
                 else:
                     stream.process.send_signal(signal.SIGINT)
 
