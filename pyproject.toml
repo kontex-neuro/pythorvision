@@ -6,6 +6,8 @@ build-backend = "setuptools.build_meta"
 name = "pythorvision"
 dynamic = ["version"]
 description = "Python API for ThorVision"
+readme = "README.md"
+license = {file = "LICENSE.txt"}
 authors = [
     { name = "Kontex", email = "hhuang@kontex.com" }
 ]
