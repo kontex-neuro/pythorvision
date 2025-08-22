@@ -53,3 +53,4 @@ nav:
   - API Reference:
     - Client: client.md
     - Camera: camera.md
+    - Video: video.md

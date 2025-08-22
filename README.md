@@ -48,22 +48,33 @@ This will install the package and its required Python dependencies.
 
 This tutorial demonstrates how to use `ThorVisionClient` to connect to the server, start and record streams from cameras, and then clean up the resources.
 
-### Run the Example Script
+### Run the Example Scripts
 
-Run the example script from your terminal:
+#### Record Video from Two Cameras
 
-   ```bash
-   python ./examples/run_two_cams.py
-   ```
+Run the following script to record from the first two available cameras for 10 seconds:
 
-This example script demonstrates how to:
-- Connect to the XDAQ ThorVision server
-- List available cameras and their capabilities
-- Start recording streams from up to 2 cameras
-- Record for a short period
-- Properly clean up resources
+```bash
+python ./examples/run_two_cams.py
+```
 
-You should see output detailing the camera capabilities, the selected streams, and recording status. The recorded `.mkv` video files will be saved in the `recordings/` directory.
+The recorded `.mkv` video files will be saved in the `recordings/` directory.
+
+#### Extract Metadata from a Video File
+
+If you have a pre-recorded video, you can extract its frame metadata using this script:
+
+```bash
+python ./examples/extract_video_metadata.py "path/to/your/video.mkv"
+```
+
+#### Record and Immediately Extract Metadata
+
+This script provides a complete end-to-end example of recording a short video and then immediately parsing it to display its metadata.
+
+```bash
+python ./examples/record_and_extract.py
+```
 
 ## API Documentation
 

@@ -2,6 +2,7 @@ __version__ = "0.1.0"
 
 from .camera import Camera, Capability
 from .client import ThorVisionClient
+from .video import extract_metadata, frame_metadata_dtype, FrameMetadata
 import logging
 
 # Set up a logger for the package
@@ -32,4 +33,7 @@ def enable_logging(level: str = "INFO"):
     logger.addHandler(handler)
 
 
-__all__ = ['ThorVisionClient', 'Camera', 'Capability', 'enable_logging', '__version__']
+__all__ = [
+    'ThorVisionClient', 'Camera', 'Capability', 'enable_logging', '__version__', 'extract_metadata',
+    'frame_metadata_dtype', 'FrameMetadata'
+]
