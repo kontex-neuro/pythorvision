@@ -8,13 +8,11 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class FrameMetadata:
-    """
-    Represents metadata associated with a single video frame.
+    """Schema for per-frame metadata in a ThorVision video.
 
-    This dataclass defines the structured data that can be extracted from
-    each frame of a ThorVision video file. It serves as the single source of truth
-    for the metadata structure, and can be used to generate a corresponding NumPy
-    dtype for efficient array operations.
+    This dataclass defines the field names and types for frame metadata.
+    It is used to generate a matching NumPy dtype, enabling efficient
+    storage and vectorized operations when handling large numbers of frames.
 
     Attributes:
         frame_pts (np.int64): The presentation timestamp (PTS) of the frame from the video container.
@@ -44,19 +42,19 @@ frame_metadata_dtype = FrameMetadata.to_numpy_dtype()
 
 
 def extract_metadata(video_path: str) -> np.ndarray:
-    """
-    Extracts metadata from a video file and returns it as a NumPy array.
+    """Extracts per-frame metadata from a ThorVision video.
 
-    This function opens a video file, demuxes its video stream to access raw packets,
-    parses custom metadata embedded in these packets, and returns the combined
-    metadata as a structured NumPy array.
+    Opens the video, parses embedded metadata, and returns it as a
+    structured NumPy array using the dtype generated from FrameMetadata.
 
     Args:
         video_path: Path to the video file (e.g., .mkv).
 
     Returns:
-        A NumPy array where each element corresponds to a video frame and contains
-        its associated metadata. The array will be empty if no valid metadata is found.
+        np.ndarray: Structured array of frame metadata. Empty array if no metadata is found.
+
+    Raises:
+        av.error.AVError: If there is an error opening or processing the video file.
     """
 
     RAW_RECORD_DTYPE = np.dtype(
