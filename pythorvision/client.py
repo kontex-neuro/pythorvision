@@ -408,3 +408,28 @@ class ThorVisionClient(BaseModel):
                 logger.error(f"Error stopping stream for camera {camera_id}: {e}")
 
         logger.info("All resources cleaned up")
+
+    def get_logs(self, file_name: Optional[str] = None) -> str:
+        """Fetch the logs from ThorVision server.
+
+        Args:
+            file_name (Optional[str]): The name of the file to get logs for.
+
+        Returns:
+            str: The logs for the file.
+        """
+        endpoint = f"{self._base_url}/logs"
+        if file_name:
+            endpoint += f"/{file_name}"
+
+        try:
+            logger.info(f"Fetching logs from {endpoint}")
+            response = requests.get(endpoint, timeout=5)
+            response.raise_for_status()
+            return response.text
+        except requests.exceptions.Timeout:
+            raise RuntimeError("Request timed out fetching logs.")
+        except requests.exceptions.HTTPError:
+            raise RuntimeError(f"Server returned error {response.status_code}: {response.text}")
+        except requests.exceptions.RequestException as e:
+            raise RuntimeError(f"Failed to fetch logs: {str(e)}") from e
