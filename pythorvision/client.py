@@ -409,27 +409,56 @@ class ThorVisionClient(BaseModel):
 
         logger.info("All resources cleaned up")
 
-    def get_logs(self, file_name: Optional[str] = None) -> str:
-        """Fetch the logs from ThorVision server.
+    @staticmethod
+    def list_logs(host: str = "192.168.177.100", port: int = 8000) -> List[str]:
+        """Retrieve a list of available log files from the ThorVision server.
 
         Args:
-            file_name (Optional[str]): The name of the file to get logs for.
+            host (str): The hostname or IP address of the ThorVision server.
+            port (int): The port number of the ThorVision server.
 
         Returns:
-            str: The logs for the file.
+            List[str]: A list of log filenames.
+        
+        Raises:
+            requests.exceptions.RequestException: If there is an issue
+                communicating with the server.
         """
-        endpoint = f"{self._base_url}/logs"
-        if file_name:
-            endpoint += f"/{file_name}"
-
+        base_url = f"http://{host}:{port}"
+        logger.debug(f"Requesting log list from {base_url}/logs")
         try:
-            logger.info(f"Fetching logs from {endpoint}")
-            response = requests.get(endpoint, timeout=5)
+            response = requests.get(f"{base_url}/logs", timeout=5)
             response.raise_for_status()
-            return response.text
-        except requests.exceptions.Timeout:
-            raise RuntimeError("Request timed out fetching logs.")
-        except requests.exceptions.HTTPError:
-            raise RuntimeError(f"Server returned error {response.status_code}: {response.text}")
+            log_files = response.json()
+            logger.info(f"Successfully retrieved {len(log_files)} log file entries")
+            return log_files
         except requests.exceptions.RequestException as e:
-            raise RuntimeError(f"Failed to fetch logs: {str(e)}") from e
+            logger.error(f"Failed to retrieve log list: {e}")
+            raise
+
+    @staticmethod
+    def get_log(log_name: str, host: str = "192.168.177.100", port: int = 8000) -> str:
+        """Retrieve the content of a specific log file from the ThorVision server.
+
+        Args:
+            log_name (str): The name of the log file to retrieve.
+            host (str): The hostname or IP address of the ThorVision server.
+            port (int): The port number of the ThorVision server.
+
+        Returns:
+            str: The content of the log file.
+            
+        Raises:
+            requests.exceptions.RequestException: If there is an issue
+                communicating with the server.
+        """
+        base_url = f"http://{host}:{port}"
+        logger.debug(f"Requesting log content for '{log_name}' from {base_url}/logs/{log_name}")
+        try:
+            response = requests.get(f"{base_url}/logs/{log_name}", timeout=5)
+            response.raise_for_status()
+            logger.info(f"Successfully retrieved log file '{log_name}'")
+            return response.text
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to retrieve log file '{log_name}': {e}")
+            raise
